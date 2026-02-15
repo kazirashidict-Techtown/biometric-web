@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Face Verification - Multiple Users</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 20px; }
+    video { border: 2px solid #333; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+<h2>Face Verification - Multiple Users</h2>
+<video id="video" width="320" height="240" autoplay></video>
+
+<script>
+const video = document.getElementById('video');
+let users = JSON.parse(localStorage.getItem("users")) || [];
+
+if(users.length === 0){
+  alert("No users enrolled. First enroll on index.html");
+}
+
+// Camera access
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => video.srcObject = stream)
+.catch(err => alert("Camera access denied!"));
+
+// Load models
+Promise.all([
+  faceapi.nets.ssdMobilenetv1.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
+  faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models')
+]).then(() => console.log("Models loaded"));
+
+// Verification
+video.addEventListener('play', async () => {
+  const interval = setInterval(async () => {
+    const detection = await faceapi.detectSingleFace(video)
+                                    .withFaceLandmarks()
+                                    .withFaceDescriptor();
+
+    if(detection && users.length > 0){
+      let minDistance = 1.0;
+      let matchedUser = null;
+
+      users.forEach(u => {
+        const distance = faceapi.euclideanDistance(u.descriptor, detection.descriptor);
+        if(distance < 0.6 && distance < minDistance){
+          minDistance = distance;
+          matchedUser = u.name;
+        }
+      });
+
+      if(matchedUser){
+        alert(`✅ VERIFIED: ${matchedUser}`);
+        clearInterval(interval);
+      }
+    }
+  }, 2000);
+});
+</script>
+
+</body>
+</html>

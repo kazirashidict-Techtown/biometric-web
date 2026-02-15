@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Face Enrollment - Multiple Users</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 20px; }
+    video { border: 2px solid #333; border-radius: 8px; }
+    input, button { padding: 10px; margin: 5px; font-size: 16px; }
+    ul { list-style: none; padding: 0; }
+  </style>
+</head>
+<body>
+
+<h2>Face Enrollment - Multiple Users</h2>
+<input type="text" id="username" placeholder="Enter Name">
+<br>
+<video id="video" width="320" height="240" autoplay></video><br>
+<button onclick="enroll()">Enroll Face</button>
+
+<h3>Enrolled Users:</h3>
+<ul id="userList"></ul>
+
+<script>
+const video = document.getElementById('video');
+const usernameInput = document.getElementById('username');
+const userList = document.getElementById('userList');
+
+// Camera access
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => video.srcObject = stream)
+.catch(err => alert("Camera access denied!"));
+
+// Load models from CDN
+Promise.all([
+  faceapi.nets.ssdMobilenetv1.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
+  faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models')
+]).then(() => {
+  console.log("Models loaded");
+  loadUserList();
+});
+
+// Enrollment
+async function enroll() {
+  const name = usernameInput.value.trim();
+  if(!name){ alert("Enter name!"); return; }
+
+  const detection = await faceapi.detectSingleFace(video)
+                                  .withFaceLandmarks()
+                                  .withFaceDescriptor();
+
+  if(detection){
+    let users = JSON.parse(localStorage.getItem("users")) || [];
+    users.push({name: name, descriptor: Array.from(detection.descriptor)});
+    localStorage.setItem("users", JSON.stringify(users));
+    alert(`✅ ${name} enrolled successfully!`);
+    usernameInput.value = "";
+    loadUserList();
+  } else {
+    alert("Face not detected, try again.");
+  }
+}
+
+// Load enrolled users list
+function loadUserList(){
+  const users = JSON.parse(localStorage.getItem("users")) || [];
+  userList.innerHTML = "";
+  users.forEach(u => {
+    const li = document.createElement("li");
+    li.textContent = u.name;
+    userList.appendChild(li);
+  });
+}
+</script>
+
+</body>
+</html>
